@@ -1,0 +1,21 @@
+name: "Format Release"
+description: "Edit release with changelog"
+inputs:
+  tag:
+    required: true
+    description: The release tag to edit
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v6
+    - name: Extract changelog
+      shell: bash
+      run: cat CHANGELOG.md | awk '/^#/ {if (p) exit; p=1; next} p' > notes.txt # kinda like assumes the changelog will be there
+
+    - name: Edit Release ${{ inputs.tag }}
+      env:
+        TAG: ${{ inputs.tag }}
+        GITHUB_TOKEN: ${{ github.token }}
+      shell: bash
+      run: gh release edit "$TAG" --notes-file notes.txt

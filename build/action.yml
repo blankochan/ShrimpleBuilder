@@ -1,0 +1,78 @@
+name: ShrimpleBuilder
+description: This is my custom build action that I use for my airframe ultra mods to reduce how many times i need to rewrite this
+
+inputs:
+  active_dependencies:
+    required: false
+    default: "BETA_4"
+    description: "Which references to use, defaults to BETA_4, intended to be used for multi-targeting game versions"
+  build_directory:
+    description: "output directory"
+    required: false
+    default: ".build"
+  constants:
+    required: false
+    default: ""
+    description: "MSBuild Constants"
+  configuration:
+    required: false
+    default: "Debug"
+    description: "MSBuild Configuration"
+  include_networking_api:
+    required: false
+    description: "add networking api"
+    default: "false"
+  dotnet-version:
+    description: "dotnet version"
+    required: false
+    default: "6.0.x"
+  download_url:
+    required: true
+    description: "URL to download references archive"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v6
+
+    - name: Setup dotnet
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
+    - name: Restore nuget dependencies
+      run: dotnet restore
+      shell: bash
+
+    - name: Cache references
+      id: cache_dependencies
+      uses: actions/cache@v4
+      with:
+        path: .ref/
+        key: ${{ github.event.repository.name }}_${{ inputs.active_dependencies }}
+
+    - name: Download references for ${{inputs.active_dependencies}}
+      if: steps.cache_dependencies.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        curl -o 'ref.tar.gz' '${{ inputs.download_url }}'
+        tar -xzf ref.tar.gz --strip-components=1
+        mv '${{ inputs.active_dependencies }}' .ref
+
+    - name: Download ShrimpleNetworkingAPI
+      if: inputs.include_networking_api == 'true'
+      run: gh release download --repo blankochan/ShrimpleNetworkingAPI --pattern ShrimpleNetworkingAPI.dll --output lib/ShrimpleNetworkingAPI.dll
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Build Project
+      run: dotnet build --configuration ${{ inputs.configuration }} -p:DefineConstants="${{ inputs.constants }}" --output "${{ inputs.build_directory }}"
+      shell: bash
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ github.event.repository.name }}_${{ inputs.configuration }}${{ inputs.constants != '' && format('_{0}', inputs.constants) || '' }}
+        path: ${{ github.workspace }}/${{ inputs.build_directory }}/*.dll
+        include-hidden-files: true
