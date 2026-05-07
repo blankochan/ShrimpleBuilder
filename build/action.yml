@@ -22,6 +22,10 @@ inputs:
     required: false
     description: "add networking api"
     default: "false"
+  rename:
+    required: false
+    description: "Rename dll output to include constants"
+    default: "false"
   dotnet-version:
     description: "dotnet version"
     required: false
@@ -69,7 +73,14 @@ runs:
     - name: Build Project
       run: dotnet build --configuration ${{ inputs.configuration }} -p:DefineConstants="${{ inputs.constants }}" --output "${{ inputs.build_directory }}"
       shell: bash
-
+    - name: Rename to include additional constants
+      if: inputs.rename == 'true'
+      run: |
+        for dll in ${{inputs.build_directory}}/*.dll
+        do
+          mv "$dll" "${dll%.dll}_${{inputs.constants}}.dll"
+        done # awful script
+      shell: bash
     - name: Upload artifacts
       uses: actions/upload-artifact@v7
       with:
