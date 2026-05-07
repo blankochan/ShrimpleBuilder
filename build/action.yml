@@ -76,3 +76,4 @@ runs:
         name: ${{ github.event.repository.name }}_${{ inputs.configuration }}${{ inputs.constants != '' && format('_{0}', inputs.constants) || '' }}
         path: ${{ github.workspace }}/${{ inputs.build_directory }}/*.dll
         include-hidden-files: true
+        archive: false
